@@ -1,5 +1,5 @@
 ---
-title: "Metodos Numericos para el calculo de estimadores Maximo Verosimiles"
+title: "Métodos númericos para el cálculo de estimadores máximo verosimiles"
 author: "Andrés Mejía"
 date: "May 8, 2017"
 output: ioslides_presentation
@@ -36,20 +36,24 @@ tot$prob=0.5
 
 ```
 
-## Problema Modelo
+## Problema modelo
 
-Se tiene una población que se sabe viene de dos subpoblaciones normales independientes con medias y varianzas desconocidas. El resultado de esto es una mixtura 
+Se mide una variable en una población que viene de dos subpoblaciones normales independientes, esta variable se distribuye en cada subpoblación con media y varianza diferentes. El resultado de esto es una mixtura.
+
+El objetivo es estimar la media y la varianza de las subpoblaciónes, asi como la probabilidad de que un individuo pertenezca a alguna de las dos poblaciones. 
+
+Es importante notar que no se tiene información de a que subpoblación pertenece cada individuo.
 
 
 ## Población
 
-```{r cars}
+```{r ,echo=FALSE}
 ggplot(tot,aes(x=x))+geom_histogram(bins=15)+geom_rug(aes(color=id))
 ```
 
-## Modelo
+## Módelo
 
-La densidad del modelo es:
+La densidad del módelo es:
 
 $$
 f(x;\mu_1,\mu_2,\sigma^2_1,\sigma^2_2,\pi)=\pi d(x;\mu_1,\sigma^2_1)+(1-\pi)d(x;\mu_2,\sigma^2_2)
@@ -64,7 +68,7 @@ $$
 $$\sum_{i=1}^n \ln(\pi d(x_i;\mu_1,\sigma^2_1)+(1-\pi)d(x_i;\mu_2,\sigma^2_2))
 $$
 
-## Ecuaciónes Normales
+## Ecuaciónes normales
 
 Obteniendo un sistema a partir de las derivadas tenemos:
 
@@ -83,7 +87,7 @@ $$
 
 ## El método de Newton
 
-Sea $f(x)$ una funcion en la cúal deseamos encontrar una raiz. Sea $\alpha$ esta raiz. Si realizamos la expansión en el punto $x_i$
+Sea $f(x)$ una función de la cúal deseamos encontrar una raiz, sea $\alpha$ esta raiz. Si realizamos la expansión de Taylor en el punto $x_i$
 
 $$
 f(x)=f(x_i)+f'(x_i)(x-x_i)+O((x-x_i)^2)
@@ -101,7 +105,7 @@ $$
 
 ## Método de Newton
 
-Evidentemente este $\alpha$ que estamos proponiendo no es exactamente la raiz (ya que aproximamos al descartar los terminos de orden 2) pero esperamos que este mas cerca de la raiz, asi obtenemos
+Este $\alpha$ que estamos proponiendo no es exactamente la raiz (ya que aproximamos al descartar los terminos de orden 2), pero esperamos que este más cerca de la raiz, el método entonces esta caracterizado por la sucesión:
 
 $$
 x_{i+1}=x_i-\frac{f(x_i)}{f'(x_i)}
@@ -117,16 +121,16 @@ $$
 
 Ventajas
 
-* Funciona en general para cualquier función
-* Converge de manera cuadratica (Aproximadamente duplica los digitos exactos en cada iteración)
+* Es aplicable para cualquier función (difenciable con algunas restricciones en la segunda derivada)
+* Converge de manera cuadratica cuando se cumplen supuestos de suavidad de la función (Aproximadamente duplica los digitos exactos en cada iteración)
 
 Desventajas
 
-* Converge en una vecindad de la solución.
+* Puede no converger (converge en una vecindad de la solución).
 * Hay dificultad operacional al calcular la derivada (la matriz $J$ y su inversa)
 * Encuentra solo una solución (en caso de existir varias)
 * No aprovecha la estructura del problema (optimización)
-* No tiene asegurada la convergencia
+
 
 
 
@@ -183,7 +187,7 @@ p1=ggplotly()
 
 ```
 
-## Paso 1: Dar un valor inicial a x
+## Paso 1: Dar un valor inicial a x.
 
 ```{r, echo=FALSE}
 ggplot(data=ab %>% filter(frame==0),aes(x=x,y=y))+
@@ -193,7 +197,7 @@ ggplot(data=ab %>% filter(frame==0),aes(x=x,y=y))+
         geom_abline(aes(slope=pendiente,intercept=corte),color="blue",linetype="dotted")
 ```
 
-## Paso 2: Calcular la recta tangente de la función en el punto dado
+## Paso 2: Calcular la recta tangente de la función en el punto dado.
 
 ```{r, echo=FALSE}
 ggplot(data=ab %>% filter(frame==2),aes(x=x,y=y))+
@@ -206,7 +210,7 @@ ggplot(data=ab %>% filter(frame==2),aes(x=x,y=y))+
 
 
 
-## Paso 3: Usar la recta tangente para actualizar el x
+## Paso 3: Usar la recta tangente para actualizar el x.
 
 ```{r, echo=FALSE}
 ggplot(data=ab %>% filter(frame==3),aes(x=x,y=y))+
@@ -216,7 +220,7 @@ ggplot(data=ab %>% filter(frame==3),aes(x=x,y=y))+
         geom_abline(aes(slope=pendiente,intercept=corte),color="blue",linetype="dotted")
 ```
 
-## Paso 4: Repetir hasta la convergencia
+## Paso 4: Repetir hasta la convergencia.
 
 ```{r, echo=FALSE}
 ggplot(data=ab %>% filter(frame==6),aes(x=x,y=y))+
@@ -235,7 +239,7 @@ p1
 
 
 
-## Divergencia en el Método de Newton
+## Divergencia en el método de Newton
 
 ```{r, include=FALSE, cache=FALSE}
 func=function(x){(x^3-2*x+2)*1}
@@ -298,10 +302,9 @@ p1
 
 En el ejemplo inicial tenemos una variable que no fue observada, de la cual solo podemos conjeturar su valor.
 
-* Es posible estimar la esperanza de esta variable si tuvieramos los valores de los parametros.
-* Es posible estimar los parametros de las dos distribuciones normales si tuvieramos la probabilidad de pertenencia a cada grupo
+* Es posible estimar la esperanza de esta variable si tuvieramos los valores de los parametros de media y varianza de las subpoblaciones.
+* Es posible estimar los parametros de las dos distribuciones normales si tuvieramos la probabilidad de pertenencia a cada grupo.
 
-Es un problema de huevo y gallina.
 
 ## Pasos del método
 
@@ -333,23 +336,24 @@ Desventajas
 
 
 
-##  Para Mixtura
+##  Para mixtura
 
-En el caso especial de una mixtura. (Como el ejemplo inicial)
+En el caso especial de una mixtura (ejemplo inicial). 
 
-1. Inicie los parametros $\mu_1,\sigma_1^2,\mu_2,\sigma_2^2.\pi$
-2. Expectation Step: calcule las probabilidates
-$$
-\gamma_i=\frac{\pi \Phi_{\mu_2}(y_i)}{\pi \Phi_{\mu_2}(y_i)+\pi \Phi_{\mu_1}(y_i)}
-$$
+* Inicie los parametros $\mu_1,\sigma_1^2,\mu_2,\sigma_2^2.\pi$
+* Expectation Step: calcule las probabilidates
 
 $$
+        \gamma_i=\frac{\pi \Phi_{\mu_2}(y_i)}{\pi \Phi_{\mu_2}(y_i)+\pi \Phi_{\mu_1}(y_i)}
+ $$
+        
+ $$
  \pi=\bar \gamma_i
  $$
 
-3. Paso de Maximización: Obtenga el estimador maximo verosimil para $\mu_1,\mu_2,\sigma_1^2,\sigma_2^2$. Que son los estimadores usuales tomando como pesos las probabilidades $\gamma_i$ calculadas en el paso anterior. 
+* Paso de Maximización: Obtenga el estimador maximo verosimil para $\mu_1,\mu_2,\sigma_1^2,\sigma_2^2$. Que son los estimadores usuales tomando como pesos las probabilidades $\gamma_i$ calculadas en el paso anterior. 
 
-4. Repita los pasos dos y tres hasta la convergencia
+* Repita los pasos dos y tres hasta la convergencia
 
 
 
@@ -524,8 +528,9 @@ i5
 
 ## Gracias
 
-* Esta presentación se realizó usando RMarkdown (iosslides)
+* Esta presentación se realizó usando RMarkdown (ioslides)
 * Las gráficas de esta presentación se realizaron usando ggplot2
 * Las animaciones se realizaron usando plotly
-* Esta presentación y el codigo fuente están en  bajo licencia creative commons
+* Esta presentación y el código fuente están en https://github.com/kuhsibiris/Newton-y-EM
+bajo licencia creative commons
 
