@@ -1,7 +1,7 @@
 ---
 title: "Métodos númericos para el cálculo de estimadores máximo verosimiles"
 author: "Andrés Mejía"
-date: "May 8, 2017"
+date: "Mayo 17, 2017"
 output: ioslides_presentation
 ---
 
@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(plotly)
 library(dplyr)
 library(magrittr)
+library(mclust)
 
 weighted.var <- function(x, w, na.rm = FALSE) {
   if (na.rm) {
@@ -36,11 +37,13 @@ tot$prob=0.5
 
 ```
 
-## Problema modelo
+## Problema módelo
 
-Se mide una variable en una población que viene de dos subpoblaciones normales independientes, esta variable se distribuye en cada subpoblación con media y varianza diferentes. El resultado de esto es una mixtura.
+Se mide una variable en una población que viene de dos subpoblaciones normales independientes, esta variable se distribuye en cada subpoblación con media y varianza diferentes. El resultado de esto es una mixtura dada.
 
-El objetivo es estimar la media y la varianza de las subpoblaciónes, asi como la probabilidad de que un individuo pertenezca a alguna de las dos poblaciones. 
+El objetivo es estimar la media y la varianza de las subpoblaciónes, asi como la probabilidad de que un individuo pertenezca a alguna de las mismas. 
+
+## Problema módelo
 
 Es importante notar que no se tiene información de a que subpoblación pertenece cada individuo.
 
@@ -117,14 +120,14 @@ $$
 \vec{x_{i+1}}=\vec{x_i}-J(\vec{x_i})^{-1}f(\vec{x_i})
 $$
 
-## Método de Newton
+## Método de Newton: Ventajas
 
-Ventajas
+
 
 * Es aplicable para cualquier función (difenciable con algunas restricciones en la segunda derivada)
 * Converge de manera cuadratica cuando se cumplen supuestos de suavidad de la función (Aproximadamente duplica los digitos exactos en cada iteración)
 
-Desventajas
+## Método de Newton: Desventajas
 
 * Puede no converger (converge en una vecindad de la solución).
 * Hay dificultad operacional al calcular la derivada (la matriz $J$ y su inversa)
@@ -294,9 +297,28 @@ ggplot(data=ab,aes(x=x,y=y,frame=frame))+
 p1=ggplotly()
 
 ```
+
 ```{r, echo=FALSE}
 p1
+
+
 ```
+
+## Ejemplo: Programación en R
+
+```{r}
+func=function(x){(x^3-6*x^2+11*x-6)*1}
+dfunc=function(x){(3*x^2-12*x+11)*1}
+valor=list(-8)
+for(i in 2:10){
+        valor[[i]]=valor[[i-1]]-func(valor[[i-1]])/dfunc(valor[[i-1]])
+}
+data.frame(unlist(valor))
+
+```
+
+
+
 
 ## Método EM (Expectation Maximization)
 
@@ -319,15 +341,15 @@ En el ejemplo inicial tenemos una variable que no fue observada, de la cual solo
 <img src="/home/andres/Dropbox/Coordinate_descent.svg.png" alt="Drawing" style="width: 530px; height: 530px"/>
 
 
-## Expectation Maximizaton
+## Expectation Maximization: Ventajas
 
-Ventajas
+
 
 * Siempre converge.
 * Relativamente intuitivo y facil de implementar.
 
 
-Desventajas
+## Expectation Maximization: Desventajas
 
 * Solo funciona para problemas de optimizacion que cumplen cierta estructura.
 * La velocidad de convergencia es baja.
@@ -350,6 +372,8 @@ $$
  $$
  \pi=\bar \gamma_i
  $$
+
+##  Para mixtura
 
 * Paso de Maximización: Obtenga el estimador maximo verosimil para $\mu_1,\mu_2,\sigma_1^2,\sigma_2^2$. Que son los estimadores usuales tomando como pesos las probabilidades $\gamma_i$ calculadas en el paso anterior. 
 
@@ -520,11 +544,63 @@ i5
 ```
 
 
+## Ejemplo: Programación en R
+
+```{r}
+data(iris)
+qplot(data=iris,x=Petal.Length,y=Sepal.Length,color=Species)
+
+```
+
+
+## Ejemplo: Programación en R
+
+```{r}
+library(mclust)
+mod=Mclust(iris[,1:4])
+summary(mod)
+```
+
+## Ejemplo: Programación en R
+
+```{r}
+pd=predict(mod)
+qplot(data=iris,x=Petal.Length,y=Sepal.Length,
+      color=as.factor(pd$classification))
+```
+
+
+## Ejemplo: Programación en R
+
+```{r}
+library(mclust)
+mod=Mclust(iris[,1:4],G=3)
+summary(mod)
+```
+
+## Ejemplo: Programación en R
+
+```{r}
+pd=predict(mod)
+qplot(data=iris,x=Petal.Length,y=Sepal.Length,
+      color=as.factor(pd$classification))
+```
+
+
+## Ejemplo: Programación en R
+
+```{r}
+
+table(as.factor(pd$classification),iris$Species)
+```
+
 ## Referencias
 
 1. Hastie, T., Tibshirani, R.,, Friedman, J. (2001). The Elements of Statistical Learning. New York, NY, USA: Springer New York Inc. 
 2. Kendall E. Atkinson, An Introduction to Numerical Analysis, (1989) John Wiley & Sons, Inc, ISBN 0-471-62489-6.
 3. Expectation Maximization, how it works. Consultado el 3 de mayo en https://www.youtube.com/watch?v=iQoXFmbXRJA.
+4. A quick tour of mclust, Consultado el 16 de mayo en 
+https://cran.r-project.org/web/packages/mclust/vignettes/mclust.html
 
 ## Gracias
 
@@ -532,5 +608,5 @@ i5
 * Las gráficas de esta presentación se realizaron usando ggplot2
 * Las animaciones se realizaron usando plotly
 * Esta presentación y el código fuente están en https://github.com/kuhsibiris/Newton-y-EM
-bajo licencia creative commons
+bajo licencia Apache v2.0
 

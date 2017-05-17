@@ -1,0 +1,485 @@
+---
+title: Una introducción a los métodos númericos en el cálculo de estimadores máximo
+  verosimiles
+author: "Andrés Mejía"
+date: "Mayo 16, 2017"
+fig.width: 1 
+fig.height: 1 
+output:
+  html_document: default
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(magrittr)
+library(mclust)
+library(ggplot2)
+
+weighted.var <- function(x, w, na.rm = FALSE) {
+  if (na.rm) {
+    w <- w[i <- !is.na(x)]
+    x <- x[i]
+  }
+  sum.w <- sum(w)
+  sum.w2 <- sum(w^2)
+  mean.w <- sum(x * w) / sum(w)
+  (sum.w / (sum.w^2 - sum.w2)) * sum(w * (x - mean.w)^2, na.rm =
+                                       na.rm)
+}
+set.seed(4)
+respuesta=c(2,1,6,1)
+
+
+a=data.frame(x=rnorm(50,respuesta[1],sqrt(respuesta[2])),id="1")
+b=data.frame(x=rnorm(50,respuesta[3],sqrt(respuesta[4])),id="2")
+
+tot=rbind(a,b)
+tot$prob=0.5
+
+
+
+
+```
+
+## Introducción
+
+Los sistemas de computo son una herramienta indispensable en el análisis moderno de datos, no solo nos permiten la manipulación de un gran volumen de información que de otra forma seria imposible de manejar, sino que tambien permite realizar cálculos que de otra manera serian imposible de realizar. 
+
+A pesar de esto no podemos ver el computador como una simple caja negra a la cual se le introducen datos y de la cual se obtiene una salida. El simple hecho de manejar un volumen moderado a grande de datos en un computador usual de la actualidad requiere que usemos de forma eficiente el poder computacional que tenemos. Si usamos R tal y como viene de forma estandar en la mayoria de distribuciones para PC, solo usaríamos uno de los varios procesadores que con seguridad contamos en computador moderno. Estamos limitados a que nuestros datos esten guardados en la memoria RAM (que rapidamente desborda muchas de las bases de datos en las que seria interesante trabajar).
+
+La solución a este problema no es un computador mas grande y con mas RAM, para iniciar el poder del procesador esta allí inutilizada y en segundo lugar con la velocidad que se generan datos en la actualidad cualquier cantidad de memoria RAM se desbordará rapidamente.
+
+Por esto cualquier sistema de "Big Data" debe ser capaz de repartir el trabajo
+entre varias entidades, llamense nucleos, computadores o tarjetas gráficas. El primer paso de esta distribución de trabajo es entender lo que se esta haciendo.
+
+
+## Problema Inicial
+
+Supongamos que tenemos una población en que viene de dos subpoblaciones normales independientes, esta variable se distribuye en cada subpoblación con media y varianza diferentes. El resultado de esto es la mixtura.
+
+El objetivo es estimar la media y la varianza de las subpoblaciónes, asi como la probabilidad de que un individuo pertenezca a alguna de las mismas. 
+
+`
+## Problema módelo
+
+Se mide una variable en una población que viene de dos subpoblaciones normales independientes, esta variable se distribuye en cada subpoblación con media y varianza diferentes. El resultado de esto es una mixtura dada por:
+
+$$
+f(x;\mu_1,\mu_2,\sigma^2_1,\sigma^2_2,\pi)=\pi d(x;\mu_1,\sigma^2_1)+(1-\pi)d(x;\mu_2,\sigma^2_2)
+$$
+
+Donde $\mu_1,\mu_2,\sigma_1^2,\sigma_2^2$ son mas medias y las varianzas de cada una de las subpoblaciones y $\pi$ es la probabilidad de pertenecer a la subpoblación 1.
+
+El objetivo es estimar la media y la varianza de las subpoblaciónes, así como el parámetro $\pi$
+
+Es importante notar que no se tiene información de a que subpoblación pertenece cada individuo.
+
+Se muestra a continuación unos datos simulados que corresponden a la situacion mencionada anteriormente con $\pi=0.5$ $\mu_1=1$, $\mu_2=6$ y $\sigma_1^2=\sigma_2^2=1$
+
+```{r ,echo=FALSE}
+ggplot(tot,aes(x=x))+geom_histogram(bins=15)+geom_rug(aes(color=id))
+```
+
+## Estimadores de Maximoverosimilitud.
+
+La densidad del módelo es:
+
+$$
+f(x;\mu_1,\mu_2,\sigma^2_1,\sigma^2_2,\pi)=\pi d(x;\mu_1,\sigma^2_1)+(1-\pi)d(x;\mu_2,\sigma^2_2)
+$$
+
+Con esto la función de log-verosimilitud queda:
+
+$$
+l(x;\mu_1,\mu_2,\sigma^2_1,\sigma^2_2,\pi)=
+$$
+
+$$\sum_{i=1}^n \ln(\pi d(x_i;\mu_1,\sigma^2_1)+(1-\pi)d(x_i;\mu_2,\sigma^2_2))
+$$
+
+
+Obteniendo un sistema a partir de las derivadas tenemos:
+
+$$
+\frac{dl}{d\pi}=\sum_{i=1}^n \frac{d(x_i;\mu_1,\sigma^2_1)-d(x_i;\mu_2,\sigma^2_2)}{\pi d(x;\mu_1,\sigma^2_1)+(1-\pi)d(x;\mu_2,\sigma^2_2)}
+$$
+$$
+\frac{dl}{d\mu_k}=\sum_{i=1}^n \frac{(-1)^{k+1}((3-2k)\pi+k-1)\frac{d}{d\mu_k}d(x_i;\mu_k,\sigma^2_k)}{\pi d(x;\mu_1,\sigma^2_1)+(1-\pi)d(x;\mu_2,\sigma^2_2)}
+$$
+
+$$
+\frac{dl}{d\sigma^2_k}=\sum_{i=1}^n \frac{(-1)^{k+1}((3-2k)\pi+k-1)  \frac{d}{d\sigma^2_k}d(x_i;\mu_k,\sigma^2_k)}{\pi d(x;\mu_1,\sigma^2_1)+(1-\pi)d(x;\mu_2,\sigma^2_2)}
+$$
+
+
+
+Encontrar una solución análitica a este sistema de ecuaciones no parece factible por lo que tendremos que recurrir a métodos númericos.
+
+## El método de Newton
+
+Sea $f(x)$ una función de la cúal deseamos encontrar una raiz, sea $\alpha$ esta raiz. Si realizamos la expansión de Taylor en el punto $x_i$
+
+$$
+f(x)=f(x_i)+f'(x_i)(x-x_i)+O((x-x_i)^2)
+$$
+
+Si evaluamos en $\alpha$  e ignoramos el segundo termino obtenemos:
+
+$$
+0=f(\alpha)=f(x_i)+f'(x_i)(\alpha-x_i)
+$$
+Así
+$$
+\alpha=x_i-\frac{f(x_i)}{f'(x_i)}
+$$
+
+Este $\alpha$ que estamos proponiendo no es exactamente la raiz (ya que aproximamos al descartar los terminos de orden 2), pero esperamos que este más cerca de la raiz. El método entonces esta caracterizado por la sucesión:
+
+$$
+x_{i+1}=x_i-\frac{f(x_i)}{f'(x_i)}
+$$
+
+Esto se generaliza a funciones $f:\mathbb{R^n}\to\mathbb{R^m}$ (Método de Newton-Rhapson) con
+
+$$
+\vec{x_{i+1}}=\vec{x_i}-J(\vec{x_i})^{-1}f(\vec{x_i})
+$$
+Donde $J(\vec{x_i})^{-1}$ es la inversa de la matriz Jacobiana de la función $f$ (que en nuestro ejemplo va de $f:\mathbb{R^5}\to\mathbb{R^5}$). 
+
+Este método tiene las siguientes ventajas
+
+* Es aplicable para cualquier función que cumpla unas condiciones mínimas. (Difenciable en una vencidad de la raiz y con segunda derivada acotada)
+* Converge de manera cuadratica cuando se cumplen supuestos de suavidad de la función (Aproximadamente duplica los digitos exactos en cada iteración)
+
+Tambien tiene algunas dificultados que no lo hacen aplicable a la todalidad de situaciones
+
+* Puede no converger si no se inicia con un punto adecuado (converge en una vecindad de la solución).
+* Hay dificultad operacional al calcular la derivada (la matriz $J$ y su inversa)
+* Encuentra solo una solución (en caso de existir varias)
+* No aprovecha la estructura del problema (optimización)
+
+Las dificultades operacionales del método no son puntos menores, la inversión de una matriz es un problema especialmente complejo que puede hacer que perdamos lo ganado al tener convergencia cuadrática. En la practica no se encuentra la inversa de la matriz $J$, sino que se resulve un sistema de equaciones equivalente.
+
+La complicación del cálculo de la derivada es relativa, dado que podemos aproximarla usando una ecuación de diferencia finita, esto tiene el efecto de reducir la convergencia y aumentar el número de operaciones. En la practica se espera que en la medida de lo posible se de la derivada de forma análitica al método para mejorar su velocidad de convergencia.
+
+
+```{r, include=FALSE, cache=FALSE}
+func=function(x){(x^3-6*x^2+11*x-6)*1}
+dfunc=function(x){(3*x^2-12*x+11)*1}
+
+
+aa=data.frame(x=seq(0,3.5,0.1))
+
+aa$y=func(aa$x)
+
+
+aa$xit=0.1
+aa$yit=0
+
+aa$frame=0
+aa$pendiente=aa$corte=0
+aa$linea=FALSE
+
+
+ab=aa
+i=0
+
+for(i in 0:20){
+        
+        aa %<>% mutate(yit=func(xit),frame=frame+1)
+                
+        ab %<>% rbind(aa)
+        
+        aa %<>% mutate(pendiente=dfunc(xit),corte=-pendiente*xit+func(xit),
+                       linea=TRUE,frame=frame+1)
+        
+        ab %<>% rbind(aa)
+        
+        aa %<>% mutate(xit=xit-func(xit)/dfunc(xit),yit=0,frame=frame+1)
+        
+        ab %<>% rbind(aa)
+        
+        aa %<>% mutate(linea=FALSE,frame=frame+1)
+        
+        ab %<>% rbind(aa)
+}
+
+
+ggplot(data=ab,aes(x=x,y=y,frame=frame))+
+        geom_line()+geom_hline(yintercept=0)+
+        geom_vline(xintercept = 0)+
+        geom_point(aes(x=xit,y=yit),color="red")+
+        geom_abline(aes(slope=pendiente,intercept=corte,frame=frame),color="blue",linetype="dotted")
+
+
+
+```
+
+### Representación gráfica del método
+
+* Paso 0: Dar un valor inicial a x.
+
+```{r echo=FALSE,fig.height=2,fig.width=3}
+ggplot(data=ab %>% filter(frame==0),aes(x=x,y=y))+
+        geom_line()+geom_hline(yintercept=0)+
+        geom_vline(xintercept = 0)+
+        geom_point(aes(x=xit,y=yit),color="red")+
+        geom_abline(aes(slope=pendiente,intercept=corte),color="blue",linetype="dotted")
+```
+
+* Paso 1: Calcular la recta tangente de la función en el punto dado.
+
+```{r, echo=FALSE,fig.width= 3,fig.height= 2}
+ggplot(data=ab %>% filter(frame==2),aes(x=x,y=y))+
+        geom_line()+geom_hline(yintercept=0)+
+        geom_vline(xintercept = 0)+
+        geom_point(aes(x=xit,y=yit),color="red")+
+        geom_abline(aes(slope=pendiente,intercept=corte),color="blue",linetype="dotted")
+```
+
+
+
+
+*  Paso 2: Usar la recta tangente para actualizar el x.
+
+```{r, echo=FALSE,fig.width= 3,fig.height= 2}
+ggplot(data=ab %>% filter(frame==3),aes(x=x,y=y))+
+        geom_line()+geom_hline(yintercept=0)+
+        geom_vline(xintercept = 0)+
+        geom_point(aes(x=xit,y=yit),color="red")+
+        geom_abline(aes(slope=pendiente,intercept=corte),color="blue",linetype="dotted")
+```
+
+* Paso 3: Repetir hasta la convergencia.
+
+```{r, echo=FALSE,fig.width= 3,fig.height= 2}
+ggplot(data=ab %>% filter(frame==6),aes(x=x,y=y))+
+        geom_line()+geom_hline(yintercept=0)+
+        geom_vline(xintercept = 0)+
+        geom_point(aes(x=xit,y=yit),color="red")+
+        geom_abline(aes(slope=pendiente,intercept=corte),color="blue",linetype="dotted")
+```
+
+
+
+
+
+### Divergencia en el método de Newton
+
+Como se meciono anteriormente una de las fallas del método es que para lograr la convergencia tenemos que estar ya relativamente cerca de la solución. Afecta mucho que alguna de las iteraciones este cerca de puntos con pendiente cero (o puntos donde la matriz $J$ no sea invertible).
+
+Tambien hay que considerar que especialmente cerca de estos puntos se puede dar un comportamiento caotico de las soluciones, es decir que con variaciones pequeñas del valor inicial se puede llegar a soluciones considerablemente distintas, el comportamiento al tratar de solucionar algunos sistemas incluso da lugar a cierto tipo de fractales llamados fractales de Newton.
+
+
+### Ejemplo: Programación en R
+
+```{r}
+func=function(x){(x^3-6*x^2+11*x-6)*1}
+dfunc=function(x){(3*x^2-12*x+11)*1}
+valor=list(-8)
+for(i in 2:10){
+        valor[[i]]=valor[[i-1]]-func(valor[[i-1]])/dfunc(valor[[i-1]])
+}
+data.frame(unlist(valor))
+
+```
+
+
+## Método EM (Expectation Maximization)
+
+Una de las criticas al uso del método de Newton para resolver este tipo de problemas es que no toma en cuenta su estructura como problema de optimización, asi como tampoco las propiedades estadisticas del problema. El método EM usa estas estructuras para llegar a un método alternativo con propiedades distintas al método de Newton.
+
+### Ejemplo
+
+En el caso especial de una mixtura como en el ejemplo inicial. 
+
+* Inicie los parametros $\mu_1,\sigma_1^2,\mu_2,\sigma_2^2.\pi$
+* Expectation Step: calcule las probabilidates
+
+$$
+        \gamma_i=\frac{\pi \Phi_{\mu_2}(y_i)}{\pi \Phi_{\mu_2}(y_i)+\pi \Phi_{\mu_1}(y_i)}
+ $$
+        
+ $$
+ \pi=\bar \gamma_i
+ $$
+
+
+* Paso de Maximización: Obtenga el estimador maximo verosimil para $\mu_1,\mu_2,\sigma_1^2,\sigma_2^2$. Que son los estimadores usuales tomando como pesos las probabilidades $\gamma_i$ calculadas en el paso anterior. 
+
+* Repita los pasos dos y tres hasta la convergencia
+
+
+
+
+```{r, include=FALSE,cache=FALSE}
+
+tot=rbind(a,b)
+tot$prob=0.5
+pi=mean(tot$prob)
+tot$pi=pi
+ggplot(tot,aes(x=x))+geom_density()+geom_point(y=0,aes(color=id))+
+  geom_density(aes(color=id))
+
+tot$plot=0
+
+
+tot$mu1=runif(1,0,10)
+tot$mu2=runif(1,0,10)
+tot$s1=var(tot$x)/2
+tot$s2=sd(tot$x)^2/2
+tot2=tot
+i=1
+for(i in 1:100){
+        #Paso 1= asignar de manera aleatoria el parametro de vectores
+        
+        
+        
+        #Paso 2 Asignar a cada uno de estos puntos las probabilidades de pertener a cada uno
+        
+        
+tot$prob=dnorm(tot$x,tot$mu1[1],sqrt(tot$s1[1]))*tot$pi/
+                (dnorm(tot$x,tot$mu1[1],sqrt(tot$s1[1]))*tot$pi+
+                         dnorm(tot$x,tot$mu2[1],sqrt(tot$s2[1]))*(1-tot$pi))
+        
+        tot$plot=2*i-1
+        pi=mean(tot$prob)
+        tot$pi=pi
+        tot2=rbind(tot2,tot)
+        
+        ###  paso 4 recalcular parametros
+        
+        tot=tot %>% mutate(mu1=weighted.mean(x,prob),
+                       s1=weighted.var(x,prob),
+                       mu2=weighted.mean(x,1-prob),
+                       s2=weighted.var(tot$x,1-tot$prob))
+       
+        
+        
+         
+        
+        tot$plot=2*i
+        
+        tot2=rbind(tot2,tot)
+        
+        
+}
+
+
+```
+Para este ejemplo se utilizaron números aleatorios entre 0 y 10 para inicializar las medias, las varianzas se iniciaron cada una con la mitad de la varianza muestral.
+ 
+ 
+```{r,echo=FALSE,fig.width= 3,fig.height= 2}
+ggplot(tot2 %>% filter(plot==0),aes(x=x,weight=prob))+
+        geom_point(aes(y=0,color=prob,size=prob))+
+        geom_point(aes(y=1,color=prob,size=1-prob))+
+        scale_color_gradient(high="red",low="blue")+
+       geom_line(aes(y=dnorm(x,mu1,s1)),color="red")+
+        geom_line(aes(y=dnorm(x,mu2,s2)),color="blue")+
+        geom_vline(aes(xintercept = mu1),color="red")+
+        geom_vline(aes(xintercept = mu2),color="blue")
+```
+
+* Paso 1.
+
+Se actualiza la probabilidad de que cada punto pertenezca a cada poblacion (es decir se calcula $\gamma_i$)
+ 
+ 
+```{r,echo=FALSE,fig.width= 3,fig.height= 2}
+ggplot(tot2 %>% filter(plot==1),aes(x=x,weight=prob))+
+        geom_point(aes(y=0,color=prob,size=prob))+
+        geom_point(aes(y=1,color=prob,size=1-prob))+
+        scale_color_gradient(high="red",low="blue")+
+       geom_line(aes(y=dnorm(x,mu1,s1)),color="red")+
+        geom_line(aes(y=dnorm(x,mu2,s2)),color="blue")+
+        geom_vline(aes(xintercept = mu1),color="red")+
+        geom_vline(aes(xintercept = mu2),color="blue")
+```
+
+
+* Paso 2.
+
+Con esta información se estiman de nuevo medias y varianzas usando el estimador maximo verosimil.
+ 
+ 
+```{r,echo=FALSE,fig.width= 3,fig.height= 2}
+ggplot(tot2 %>% filter(plot==2),aes(x=x,weight=prob))+
+        geom_point(aes(y=0,color=prob,size=prob))+
+        geom_point(aes(y=1,color=prob,size=1-prob))+
+        scale_color_gradient(high="red",low="blue")+
+       geom_line(aes(y=dnorm(x,mu1,s1)),color="red")+
+        geom_line(aes(y=dnorm(x,mu2,s2)),color="blue")+
+        geom_vline(aes(xintercept = mu1),color="red")+
+        geom_vline(aes(xintercept = mu2),color="blue")
+```
+
+* Paso 3.
+
+Repetir hasta la convergencia
+
+
+```{r,echo=FALSE,fig.width= 3,fig.height= 2}
+ggplot(tot2 %>% filter(plot==195),aes(x=x,weight=prob))+
+        geom_point(aes(y=0,color=prob,size=prob))+
+        geom_point(aes(y=1,color=prob,size=1-prob))+
+        scale_color_gradient(high="red",low="blue")+
+       geom_line(aes(y=dnorm(x,mu1,s1)),color="red")+
+        geom_line(aes(y=dnorm(x,mu2,s2)),color="blue")+
+        geom_vline(aes(xintercept = mu1),color="red")+
+        geom_vline(aes(xintercept = mu2),color="blue")
+```
+
+
+
+### Explicación
+
+Consideremos primero una función de verosimilitud de la cual queremos estimar sus parametros $\theta$ y tenemos un conjunto de variables $Z$ observadas, es decir $l(\theta,Z)$, consideremos ahora que existe un conjunto de variables que no observamos $Z'$ (la pertenencia a una de las categorias en el ejemplo inicial), tambien sea $\theta'$ un estimador de $\theta$. Y consideremos que expandimos nuestro problema inicial con estimaciones de estas variables, si:
+
+$$
+P(Z'|Z,\theta)=\frac{P(Z',Z|theta')}{P(Z|\theta')}
+$$
+de forma equivalente:
+
+$$
+P(Z|\theta')=\frac{P(Z',Z|\theta')}{P(Z'|Z,\theta)}
+$$
+Visto como verosimilitud y tomando esperanza con respecto a $Z',Z|Z$
+
+$$
+l(\theta',Z)=E[l_0(\theta',Z,Z')|Z,)\theta]-E[l_1(\theta',Z|Z')|Z,)\theta]
+$$
+
+$$
+l(\theta',P(Z'))=E_P[l_0(\theta',Z,Z')]-E_P[\log(P(Z'))]
+$$
+
+
+Ahora si tomamos el maximizador sobre $P(Z')$ tomando $\theta$ fijo se puede encontrar en 
+
+$$
+P(Z')=Pr(Z'|Z,\theta')
+$$
+
+Que es equivalente al paso E, el paso M es tomar $P(Z')$ fijo y tomar la maximización con respecto a $\theta'$ que corresponde a los estimadores de máxima verosimilitus usuales.
+
+### Propiedades
+
+Este método cuenta con algunas ventajas con respecto al método de Newton.
+
+* Siempre converge.
+* Relativamente intuitivo y facil de implementar.
+
+Sin embargo tiene su propio conjunto de incovenientes:
+
+* Solo funciona para problemas de optimizacion que cumplen cierta estructura.
+* La velocidad de convergencia es baja.
+* Esta convergencia no se puede asegurar que sea a un optimo global.
+* Encuentra solo una solución (en caso de existir varias).
+
+### A continuación.
+
+Este análisis tambien abre la puerta a otra cantidad de métodos que aprovechen la extructura de optimización del problema (por ejemplo metodos de gradiente conjugado u otros mas heuristicos). 
